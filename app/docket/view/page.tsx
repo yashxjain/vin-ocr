@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { Suspense } from 'react';
 
 interface Shipment {
   Id: number;
@@ -135,6 +136,7 @@ const DocketView = () => {
 }, 0) || 0;
 
   return (
+     <Suspense fallback={<Loading />}>
     <div className="min-h-screen bg-gray-100 p-4 md:p-6 print:bg-white print:p-0">
       <div className="max-w-6xl mx-auto">
         {/* Header with Back Button */}
@@ -545,7 +547,8 @@ const DocketView = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+      </Suspense>
   );
 };
 
