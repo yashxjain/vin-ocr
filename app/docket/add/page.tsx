@@ -105,47 +105,36 @@ if (!mounted) return null;
   const removeShipment = (id: number) => {
     setShipments(shipments.filter(s => s.id !== id));
   };
-const preprocessImage = (file: File): Promise<HTMLCanvasElement> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    const reader = new FileReader();
+const preprocessImage = async (file: File): Promise<HTMLCanvasElement> => {
+  const bitmap = await createImageBitmap(file); // Fixes orientation
 
-    reader.onload = (event) => {
-      img.src = event.target?.result as string;
-    };
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d")!;
 
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      const ctx = canvas.getContext("2d")!;
+  const maxWidth = 1500;
+  const scale = Math.min(maxWidth / bitmap.width, 1);
 
-      // Resize large mobile images
-      const maxWidth = 1500;
-      const scale = Math.min(maxWidth / img.width, 1);
+  canvas.width = bitmap.width * scale;
+  canvas.height = bitmap.height * scale;
 
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
+  ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
 
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  // Convert to grayscale (improves OCR)
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
 
-      // Convert to grayscale
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+    data[i] = avg;
+    data[i + 1] = avg;
+    data[i + 2] = avg;
+  }
 
-      for (let i = 0; i < data.length; i += 4) {
-        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-        data[i] = avg;
-        data[i + 1] = avg;
-        data[i + 2] = avg;
-      }
+  ctx.putImageData(imageData, 0, 0);
 
-      ctx.putImageData(imageData, 0, 0);
-
-      resolve(canvas);
-    };
-
-    reader.readAsDataURL(file);
-  });
+  return canvas;
 };
+
 
   const handleOCRUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
