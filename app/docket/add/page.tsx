@@ -105,27 +105,77 @@ if (!mounted) return null;
   const removeShipment = (id: number) => {
     setShipments(shipments.filter(s => s.id !== id));
   };
+const preprocessImage = (file: File): Promise<HTMLCanvasElement> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      img.src = event.target?.result as string;
+    };
+
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d")!;
+
+      // Resize large mobile images
+      const maxWidth = 1500;
+      const scale = Math.min(maxWidth / img.width, 1);
+
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      // Convert to grayscale
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const data = imageData.data;
+
+      for (let i = 0; i < data.length; i += 4) {
+        const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+        data[i] = avg;
+        data[i + 1] = avg;
+        data[i + 2] = avg;
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+
+      resolve(canvas);
+    };
+
+    reader.readAsDataURL(file);
+  });
+};
 
   const handleOCRUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const file = e.target.files?.[0];
   if (!file) return;
 
   setOcrLoading(true);
-  setOcrText('');
+  setOcrText("");
 
   try {
-    const { data: { text } } = await Tesseract.recognize(file, "eng", {
-      logger: m => console.log(m),
-    });
+    const processedImage = await preprocessImage(file);
+
+    const { data: { text } } = await Tesseract.recognize(
+      processedImage,
+      "eng",
+      {
+        logger: m => console.log(m),
+      }
+    );
 
     setOcrText(text);
     parseAndFillAddress(text);
+
   } catch (err) {
+    console.error(err);
     setOcrText("❌ Failed to read text");
   } finally {
     setOcrLoading(false);
   }
 };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -247,7 +297,7 @@ if (!mounted) return null;
 <input
   type="file"
   accept="image/*"
-  // capture="environment"
+  capture="environment"
   onChange={handleOCRUpload}
   className="mt-2"
 />
