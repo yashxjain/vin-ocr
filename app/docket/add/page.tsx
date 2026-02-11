@@ -247,7 +247,7 @@ if (!mounted) return null;
 <input
   type="file"
   accept="image/*"
-  capture="environment"
+  // capture="environment"
   onChange={handleOCRUpload}
   className="mt-2"
 />
