@@ -19,75 +19,85 @@ import {
   Plus,
   ChevronLeft,
   Check,
-  Upload,
   Eye,
-  RefreshCw
+  RefreshCw,
+  Box
 } from 'lucide-react';
 
 interface FormData {
-  consignorName: string;
-  consignorMobile: string;
-  consignorAddress: string;
-  consignorDistrict: string;
-  consignorState: string;
-  consignorPincode: string;
   consigneeName: string;
   consigneeMobile: string;
   consigneeAddress: string;
   consigneeDistrict: string;
   consigneeState: string;
   consigneePincode: string;
-  shipDate: string;
   origin: string;
   destination: string;
-  modeOfTransport: string;
-  invoiceRequired: string;
-  invoiceNumber: string;
-  invoiceValue: string;
-  shipmentType: string;
-  pickupDate: string;
   pickupEmployee: string;
   ewayBillNo: string;
 }
 
 interface Shipment {
   id: number;
-  description: string;
-  weight: string;
-  dimensions: string;
-  quantity: string;
+  boxType: string;
+  length: number;
+  width: number;
+  height: number;
+  actualWeight: number;
+  noOfBox: number;
 }
+
+// Box type configurations
+const BOX_TYPES = {
+  'Small': { length: 10, width: 10, height: 10 },
+  'Medium': { length: 20, width: 15, height: 10 },
+  'Large': { length: 30, width: 20, height: 15 },
+  'Other': { length: 0, width: 0, height: 0 }
+};
 
 export default function AddDocketPage() {
   const { user } = useAuth();
   const router = useRouter();
+  
+  // Get consignor details from session storage
+  const [consignorDetails] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const userData = sessionStorage.getItem('vinworld_user');
+      if (userData) {
+        const parsed = JSON.parse(userData);
+        return {
+          name: parsed.ConsignorName || '',
+          mobile: parsed.ConsignorMobile || '',
+          address: parsed.ConsignorAddress || '',
+          district: parsed.ConsignorDistrict || '',
+          state: parsed.ConsignorState || '',
+          pincode: parsed.ConsignorPincode || ''
+        };
+      }
+    }
+    return {
+      name: '',
+      mobile: '',
+      address: '',
+      district: '',
+      state: '',
+      pincode: ''
+    };
+  });
+
   const [formData, setFormData] = useState<FormData>({
-    consignorName: '',
-    consignorMobile: '',
-    consignorAddress: '',
-    consignorDistrict: '',
-    consignorState: '',
-    consignorPincode: '',
     consigneeName: '',
     consigneeMobile: '',
     consigneeAddress: '',
     consigneeDistrict: '',
     consigneeState: '',
     consigneePincode: '',
-    shipDate: '',
     origin: '',
     destination: '',
-    modeOfTransport: '',
-    invoiceRequired: 'No',
-    invoiceNumber: '',
-    invoiceValue: '',
-    shipmentType: '',
-    pickupDate: '',
     pickupEmployee: '',
     ewayBillNo: '',
   });
 
-  const [showInvoiceFields, setShowInvoiceFields] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -95,35 +105,65 @@ export default function AddDocketPage() {
   const [ocrText, setOcrText] = useState('');
   const [ocrLoading, setOcrLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
   const [shipmentForm, setShipmentForm] = useState({
-    description: '',
-    weight: '',
-    dimensions: '',
-    quantity: '',
+    boxType: 'Small',
+    length: 10,
+    width: 10,
+    height: 10,
+    actualWeight: '',
+    noOfBox: '1',
   });
-
-  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  const handleBoxTypeChange = (type: string) => {
+    const dimensions = BOX_TYPES[type as keyof typeof BOX_TYPES];
+    setShipmentForm({
+      ...shipmentForm,
+      boxType: type,
+      length: dimensions.length,
+      width: dimensions.width,
+      height: dimensions.height
+    });
+  };
+
+  const handleDimensionChange = (dimension: 'length' | 'width' | 'height', value: number) => {
+    setShipmentForm({
+      ...shipmentForm,
+      [dimension]: value
+    });
+  };
 
   if (!mounted) return null;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
-
-    if (name === 'invoiceRequired') {
-      setShowInvoiceFields(value === 'Yes');
-    }
   };
 
   const addShipment = () => {
-    if (shipmentForm.description && shipmentForm.weight && shipmentForm.quantity) {
-      setShipments([...shipments, { ...shipmentForm, id: Date.now() }]);
-      setShipmentForm({ description: '', weight: '', dimensions: '', quantity: '' });
+    if (shipmentForm.actualWeight && shipmentForm.noOfBox) {
+      setShipments([...shipments, { 
+        id: Date.now(),
+        boxType: shipmentForm.boxType,
+        length: shipmentForm.length,
+        width: shipmentForm.width,
+        height: shipmentForm.height,
+        actualWeight: parseFloat(shipmentForm.actualWeight),
+        noOfBox: parseInt(shipmentForm.noOfBox)
+      }]);
+      setShipmentForm({ 
+        boxType: 'Small',
+        length: 10,
+        width: 10,
+        height: 10,
+        actualWeight: '',
+        noOfBox: '1'
+      });
     }
   };
 
@@ -188,9 +228,9 @@ export default function AddDocketPage() {
 
     setFormData(prev => ({
       ...prev,
-      consignorAddress: text,
-      consignorPincode: pincodeMatch?.[0] || "",
-      consignorMobile: mobileMatch?.[0] || "",
+      consigneeAddress: text,
+      consigneePincode: pincodeMatch?.[0] || "",
+      consigneeMobile: mobileMatch?.[0] || "",
     }));
   };
 
@@ -200,10 +240,8 @@ export default function AddDocketPage() {
     setSuccess('');
 
     const required = [
-      'consignorName', 'consignorMobile', 'consignorAddress',
       'consigneeName', 'consigneeMobile', 'consigneeAddress',
-      'shipDate', 'origin', 'destination', 'modeOfTransport',
-      'shipmentType', 'pickupDate', 'pickupEmployee'
+      'origin', 'destination', 'pickupEmployee'
     ];
 
     for (const field of required) {
@@ -221,11 +259,45 @@ export default function AddDocketPage() {
     setLoading(true);
 
     try {
+      const today = new Date().toISOString().split('T')[0];
+      
       const submitData = {
-        ...formData,
-        shipments,
+        consignor: {
+          name: consignorDetails.name,
+          address: consignorDetails.address,
+          district: consignorDetails.district,
+          state: consignorDetails.state,
+          pincode: consignorDetails.pincode,
+          mobile: consignorDetails.mobile
+        },
+        consignee: {
+          name: formData.consigneeName,
+          address: formData.consigneeAddress,
+          district: formData.consigneeDistrict,
+          state: formData.consigneeState,
+          pincode: formData.consigneePincode,
+          mobile: formData.consigneeMobile
+        },
+        shipDate: today,
+        origin: formData.origin,
+        destination: formData.destination,
+        modeOfTransport: 'Road',
+        invoiceRequired: 'Yes',
+        invoiceNumber: '',
+        invoiceValue: 0,
+        shipmentType: 'Non-DOX',
+        pickupDate: today,
+        pickupEmployee: formData.pickupEmployee,
+        ewayBillNo: formData.ewayBillNo || '',
         locationId: user?.LocationId,
-        createdBy: user?.EmpCode,
+        shipments: shipments.map(({ boxType, length, width, height, actualWeight, noOfBox }) => ({
+          length,
+          width,
+          height,
+          actualWeight,
+          noOfBox,
+          boxType
+        }))
       };
 
       const response = await fetch('https://namami-infotech.com/vinworld/src/docket/add_docket.php', {
@@ -251,32 +323,18 @@ export default function AddDocketPage() {
 
   const handleReset = () => {
     setFormData({
-      consignorName: '',
-      consignorMobile: '',
-      consignorAddress: '',
-      consignorDistrict: '',
-      consignorState: '',
-      consignorPincode: '',
       consigneeName: '',
       consigneeMobile: '',
       consigneeAddress: '',
       consigneeDistrict: '',
       consigneeState: '',
       consigneePincode: '',
-      shipDate: '',
       origin: '',
       destination: '',
-      modeOfTransport: '',
-      invoiceRequired: 'No',
-      invoiceNumber: '',
-      invoiceValue: '',
-      shipmentType: '',
-      pickupDate: '',
       pickupEmployee: '',
       ewayBillNo: '',
     });
     setShipments([]);
-    setShowInvoiceFields(false);
   };
 
   const SectionHeader = ({ icon: Icon, title }: { icon: any, title: string }) => (
@@ -288,7 +346,7 @@ export default function AddDocketPage() {
     </div>
   );
 
-  const InputField = ({ label, name, type = "text", placeholder, required = false, icon: Icon }: any) => (
+  const InputField = ({ label, name, type = "text", placeholder, required = false, icon: Icon, value, onChange }: any) => (
     <div className="space-y-2">
       <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
         {Icon && <Icon className="w-4 h-4" />}
@@ -298,8 +356,8 @@ export default function AddDocketPage() {
       <input
         type={type}
         name={name}
-        value={formData[name as keyof FormData]}
-        onChange={handleInputChange}
+        value={value}
+        onChange={onChange}
         placeholder={placeholder}
         required={required}
         className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
@@ -335,15 +393,15 @@ export default function AddDocketPage() {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <span className="text-gray-600">Name:</span>
-                <div className="font-semibold text-[#002d62]">{formData.consignorName || 'Not provided'}</div>
+                <div className="font-semibold text-[#002d62]">{consignorDetails.name || 'Not provided'}</div>
               </div>
               <div>
                 <span className="text-gray-600">Mobile:</span>
-                <div className="font-semibold text-[#002d62]">{formData.consignorMobile || 'Not provided'}</div>
+                <div className="font-semibold text-[#002d62]">{consignorDetails.mobile || 'Not provided'}</div>
               </div>
               <div className="col-span-2">
                 <span className="text-gray-600">Address:</span>
-                <div className="font-semibold text-[#002d62]">{formData.consignorAddress || 'Not provided'}</div>
+                <div className="font-semibold text-[#002d62]">{consignorDetails.address || 'Not provided'}</div>
               </div>
             </div>
           </div>
@@ -385,14 +443,6 @@ export default function AddDocketPage() {
                 <span className="text-gray-600">To:</span>
                 <div className="font-semibold text-[#002d62]">{formData.destination || 'Not provided'}</div>
               </div>
-              <div>
-                <span className="text-gray-600">Type:</span>
-                <div className="font-semibold text-[#002d62]">{formData.shipmentType || 'Not provided'}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Mode:</span>
-                <div className="font-semibold text-[#002d62]">{formData.modeOfTransport || 'Not provided'}</div>
-              </div>
             </div>
           </div>
 
@@ -407,12 +457,12 @@ export default function AddDocketPage() {
                 {shipments.map((shipment, idx) => (
                   <div key={shipment.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                     <div className="font-semibold text-[#002d62] mb-1">
-                      {idx + 1}. {shipment.description}
+                      {idx + 1}. {shipment.boxType} Box
                     </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs text-gray-600">
-                      <div>Weight: {shipment.weight}kg</div>
-                      <div>Qty: {shipment.quantity}</div>
-                      <div>Size: {shipment.dimensions}</div>
+                    <div className="grid grid-cols-4 gap-2 text-xs text-gray-600">
+                      <div>Size: {shipment.length}x{shipment.width}x{shipment.height}</div>
+                      <div>Weight: {shipment.actualWeight}kg</div>
+                      <div>Qty: {shipment.noOfBox}</div>
                     </div>
                   </div>
                 ))}
@@ -459,7 +509,7 @@ export default function AddDocketPage() {
             <div className="flex items-center justify-between mb-3">
               <label className="font-bold text-[#002d62] flex items-center gap-2">
                 <Camera className="w-5 h-5" />
-                Scan Address with Camera
+                Scan Consignee Address with Camera
               </label>
               {ocrLoading && (
                 <div className="text-sm text-[#f7931d] animate-pulse">Processing...</div>
@@ -486,7 +536,7 @@ export default function AddDocketPage() {
               ) : (
                 <div className="flex items-center justify-center gap-2">
                   <Camera className="w-5 h-5" />
-                  Tap to Capture Address
+                  Tap to Capture Consignee Address
                 </div>
               )}
             </label>
@@ -512,61 +562,64 @@ export default function AddDocketPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Consignor Section */}
+            {/* Consignor Section - Read Only */}
             <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
               <SectionHeader icon={User} title="Consignor Details" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputField 
-                  label="Full Name"
-                  name="consignorName"
-                  placeholder="Enter consignor name"
-                  required
-                  icon={User}
-                />
-                <InputField 
-                  label="Mobile Number"
-                  name="consignorMobile"
-                  type="tel"
-                  placeholder="10-digit mobile"
-                  required
-                  icon={Phone}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
+                    <User className="w-4 h-4" />
+                    Full Name
+                  </label>
+                  <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
+                    {consignorDetails.name}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    Mobile Number
+                  </label>
+                  <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
+                    {consignorDetails.mobile}
+                  </div>
+                </div>
                 <div className="md:col-span-2">
                   <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2 mb-2">
                     <MapPin className="w-4 h-4" />
-                    Address *
+                    Address
                   </label>
-                  <textarea
-                    name="consignorAddress"
-                    value={formData.consignorAddress}
-                    onChange={handleInputChange}
-                    placeholder="Enter complete address"
-                    rows={3}
-                    required
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
-                  />
+                  <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
+                    {consignorDetails.address}
+                  </div>
                 </div>
-                <InputField 
-                  label="District"
-                  name="consignorDistrict"
-                  placeholder="Enter district"
-                  required
-                  icon={MapPin}
-                />
-                <InputField 
-                  label="State"
-                  name="consignorState"
-                  placeholder="Enter state"
-                  required
-                  icon={MapPin}
-                />
-                <InputField 
-                  label="Pincode"
-                  name="consignorPincode"
-                  placeholder="6-digit pincode"
-                  required
-                  icon={MapPin}
-                />
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    District
+                  </label>
+                  <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
+                    {consignorDetails.district}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    State
+                  </label>
+                  <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
+                    {consignorDetails.state}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
+                    <MapPin className="w-4 h-4" />
+                    Pincode
+                  </label>
+                  <div className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
+                    {consignorDetails.pincode}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -580,6 +633,8 @@ export default function AddDocketPage() {
                   placeholder="Enter consignee name"
                   required
                   icon={User}
+                  value={formData.consigneeName}
+                  onChange={handleInputChange}
                 />
                 <InputField 
                   label="Mobile Number"
@@ -588,6 +643,8 @@ export default function AddDocketPage() {
                   placeholder="10-digit mobile"
                   required
                   icon={Phone}
+                  value={formData.consigneeMobile}
+                  onChange={handleInputChange}
                 />
                 <div className="md:col-span-2">
                   <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2 mb-2">
@@ -610,6 +667,8 @@ export default function AddDocketPage() {
                   placeholder="Enter district"
                   required
                   icon={MapPin}
+                  value={formData.consigneeDistrict}
+                  onChange={handleInputChange}
                 />
                 <InputField 
                   label="State"
@@ -617,6 +676,8 @@ export default function AddDocketPage() {
                   placeholder="Enter state"
                   required
                   icon={MapPin}
+                  value={formData.consigneeState}
+                  onChange={handleInputChange}
                 />
                 <InputField 
                   label="Pincode"
@@ -624,6 +685,8 @@ export default function AddDocketPage() {
                   placeholder="6-digit pincode"
                   required
                   icon={MapPin}
+                  value={formData.consigneePincode}
+                  onChange={handleInputChange}
                 />
               </div>
             </div>
@@ -633,18 +696,13 @@ export default function AddDocketPage() {
               <SectionHeader icon={Truck} title="Shipment Details" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <InputField 
-                  label="Ship Date"
-                  name="shipDate"
-                  type="date"
-                  required
-                  icon={Calendar}
-                />
-                <InputField 
                   label="Origin"
                   name="origin"
                   placeholder="Origin city"
                   required
                   icon={MapPin}
+                  value={formData.origin}
+                  onChange={handleInputChange}
                 />
                 <InputField 
                   label="Destination"
@@ -652,83 +710,8 @@ export default function AddDocketPage() {
                   placeholder="Destination city"
                   required
                   icon={MapPin}
-                />
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
-                    <Truck className="w-4 h-4" />
-                    Mode of Transport *
-                  </label>
-                  <select
-                    name="modeOfTransport"
-                    value={formData.modeOfTransport}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
-                  >
-                    <option value="">Select transport</option>
-                    <option value="Road">Road</option>
-                    <option value="Air">Air</option>
-                    <option value="Rail">Train</option>
-                    <option value="Sea">Sea</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
-                    <Package className="w-4 h-4" />
-                    Shipment Type *
-                  </label>
-                  <select
-                    name="shipmentType"
-                    value={formData.shipmentType}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
-                  >
-                    <option value="">Select type</option>
-                    <option value="DOX">DOX</option>
-                    <option value="Non-DOX">Non-DOX</option>
-                    <option value="Express">Express</option>
-                    <option value="Standard">Standard</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
-                    <FileText className="w-4 h-4" />
-                    Invoice Required?
-                  </label>
-                  <select
-                    name="invoiceRequired"
-                    value={formData.invoiceRequired}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
-                  >
-                    <option value="No">No</option>
-                    <option value="Yes">Yes</option>
-                  </select>
-                </div>
-                {showInvoiceFields && (
-                  <>
-                    <InputField 
-                      label="Invoice Number"
-                      name="invoiceNumber"
-                      placeholder="Invoice number"
-                      icon={FileText}
-                    />
-                    <InputField 
-                      label="Invoice Value (₹)"
-                      name="invoiceValue"
-                      type="number"
-                      placeholder="0.00"
-                      icon={FileText}
-                    />
-                  </>
-                )}
-                <InputField 
-                  label="Pickup Date & Time"
-                  name="pickupDate"
-                  type="datetime-local"
-                  required
-                  icon={Calendar}
+                  value={formData.destination}
+                  onChange={handleInputChange}
                 />
                 <InputField 
                   label="Pickup Employee"
@@ -736,12 +719,16 @@ export default function AddDocketPage() {
                   placeholder="Employee name"
                   required
                   icon={User}
+                  value={formData.pickupEmployee}
+                  onChange={handleInputChange}
                 />
                 <InputField 
                   label="E-Way Bill No."
                   name="ewayBillNo"
                   placeholder="E-way bill number"
                   icon={FileText}
+                  value={formData.ewayBillNo}
+                  onChange={handleInputChange}
                 />
               </div>
             </div>
@@ -755,7 +742,7 @@ export default function AddDocketPage() {
                   {shipments.map((shipment) => (
                     <div key={shipment.id} className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                       <div className="flex justify-between items-start mb-2">
-                        <div className="font-semibold text-[#002d62]">{shipment.description}</div>
+                        <div className="font-semibold text-[#002d62]">{shipment.boxType} Box</div>
                         <button
                           type="button"
                           onClick={() => removeShipment(shipment.id)}
@@ -764,18 +751,18 @@ export default function AddDocketPage() {
                           <X className="w-4 h-4 text-red-500" />
                         </button>
                       </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm text-gray-600">
+                      <div className="grid grid-cols-4 gap-4 text-sm text-gray-600">
                         <div className="flex flex-col">
-                          <span className="font-medium">Weight</span>
-                          <span className="text-[#002d62] font-semibold">{shipment.weight} kg</span>
+                          <span className="font-medium">Size</span>
+                          <span className="text-[#002d62] font-semibold">{shipment.length}x{shipment.width}x{shipment.height}</span>
                         </div>
                         <div className="flex flex-col">
-                          <span className="font-medium">Dimensions</span>
-                          <span className="text-[#002d62] font-semibold">{shipment.dimensions || 'N/A'}</span>
+                          <span className="font-medium">Weight</span>
+                          <span className="text-[#002d62] font-semibold">{shipment.actualWeight} kg</span>
                         </div>
                         <div className="flex flex-col">
                           <span className="font-medium">Quantity</span>
-                          <span className="text-[#002d62] font-semibold">{shipment.quantity}</span>
+                          <span className="text-[#002d62] font-semibold">{shipment.noOfBox}</span>
                         </div>
                       </div>
                     </div>
@@ -784,23 +771,75 @@ export default function AddDocketPage() {
               )}
 
               <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-[#002d62]">Description *</label>
-                    <input
-                      type="text"
-                      value={shipmentForm.description}
-                      onChange={(e) => setShipmentForm({...shipmentForm, description: e.target.value})}
-                      placeholder="Item description"
+                    <label className="text-sm font-semibold text-[#002d62]">Box Type *</label>
+                    <select
+                      value={shipmentForm.boxType}
+                      onChange={(e) => handleBoxTypeChange(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#f7931d]"
-                    />
+                    >
+                      <option value="Small">Small (10x10x10)</option>
+                      <option value="Medium">Medium (20x15x10)</option>
+                      <option value="Large">Large (30x20x15)</option>
+                      <option value="Other">Other (Custom)</option>
+                    </select>
                   </div>
+
+                  {shipmentForm.boxType === 'Other' ? (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#002d62]">Length (cm) *</label>
+                        <input
+                          type="number"
+                          value={shipmentForm.length}
+                          onChange={(e) => handleDimensionChange('length', parseFloat(e.target.value))}
+                          placeholder="0"
+                          min="0"
+                          step="0.1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#f7931d]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#002d62]">Width (cm) *</label>
+                        <input
+                          type="number"
+                          value={shipmentForm.width}
+                          onChange={(e) => handleDimensionChange('width', parseFloat(e.target.value))}
+                          placeholder="0"
+                          min="0"
+                          step="0.1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#f7931d]"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-[#002d62]">Height (cm) *</label>
+                        <input
+                          type="number"
+                          value={shipmentForm.height}
+                          onChange={(e) => handleDimensionChange('height', parseFloat(e.target.value))}
+                          placeholder="0"
+                          min="0"
+                          step="0.1"
+                          className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#f7931d]"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2 col-span-3">
+                      <label className="text-sm font-semibold text-[#002d62]">Dimensions</label>
+                      <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded text-gray-700">
+                        {shipmentForm.length}cm x {shipmentForm.width}cm x {shipmentForm.height}cm
+                      </div>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <label className="text-sm font-semibold text-[#002d62]">Weight (kg) *</label>
                     <input
                       type="number"
-                      value={shipmentForm.weight}
-                      onChange={(e) => setShipmentForm({...shipmentForm, weight: e.target.value})}
+                      value={shipmentForm.actualWeight}
+                      onChange={(e) => setShipmentForm({...shipmentForm, actualWeight: e.target.value})}
                       placeholder="0.00"
                       min="0"
                       step="0.01"
@@ -808,21 +847,11 @@ export default function AddDocketPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <label className="text-sm font-semibold text-[#002d62]">Dimensions</label>
-                    <input
-                      type="text"
-                      value={shipmentForm.dimensions}
-                      onChange={(e) => setShipmentForm({...shipmentForm, dimensions: e.target.value})}
-                      placeholder="L x W x H"
-                      className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#f7931d]"
-                    />
-                  </div>
-                  <div className="space-y-2">
                     <label className="text-sm font-semibold text-[#002d62]">Quantity *</label>
                     <input
                       type="number"
-                      value={shipmentForm.quantity}
-                      onChange={(e) => setShipmentForm({...shipmentForm, quantity: e.target.value})}
+                      value={shipmentForm.noOfBox}
+                      onChange={(e) => setShipmentForm({...shipmentForm, noOfBox: e.target.value})}
                       placeholder="1"
                       min="1"
                       className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#f7931d]"

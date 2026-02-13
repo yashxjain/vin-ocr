@@ -12,7 +12,14 @@ interface User {
   loginTime: string;
   expiresAt: string;
   sessionId: string;
+  ConsignorName: string;
+  ConsignorMobile: string;
+  ConsignorAddress: string;
+  ConsignorDistrict: string;
+  ConsignorState: string;
+  ConsignorPincode : string;
 }
+
 
 interface AuthContextType {
   user: User | null;
