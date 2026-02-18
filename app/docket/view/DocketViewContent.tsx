@@ -456,17 +456,23 @@ const DocketViewContent = () => {
           <div className="mb-6 md:mb-8">
             <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2 md:mb-3">Type:</h3>
             <div className="flex flex-wrap gap-4 md:gap-6">
-              {['DOX', 'NON-DOX'].map((type) => (
-                <label key={type} className="flex items-center">
-                  <input
-                    type="checkbox"
-                    checked={docket.ShipmentType.toUpperCase() === type.replace('-', '')}
-                    readOnly
-                    className="mr-2 h-4 w-4 md:h-5 md:w-5 accent-[#002d62]"
-                  />
-                  <span className="font-semibold text-sm md:text-base">{type}</span>
-                </label>
-              ))}
+              {['DOX', 'Non-DOX'].map((type) => {
+  // Create a normalized version for comparison
+  const normalizedType = type === 'Non-DOX' ? 'nondox' : type.toLowerCase();
+  const docketType = docket.ShipmentType?.toLowerCase().replace('-', '') || '';
+  
+  return (
+    <label key={type} className="flex items-center">
+      <input
+        type="checkbox"
+        checked={docketType === normalizedType}
+        readOnly
+        className="mr-2 h-4 w-4 md:h-5 md:w-5 accent-[#002d62]"
+      />
+      <span className="font-semibold text-sm md:text-base">{type}</span>
+    </label>
+  );
+})}
             </div>
           </div>
 
@@ -522,9 +528,7 @@ const DocketViewContent = () => {
                 <thead>
                   <tr className="bg-gray-100">
                     <th className="border border-gray-300 p-1 md:p-2 text-left font-bold">PIECES</th>
-                    <th className="border border-gray-300 p-1 md:p-2 text-left font-bold">DESCRIPTION</th>
                     <th className="border border-gray-300 p-1 md:p-2 text-left font-bold">ACTUAL WT.</th>
-                    <th className="border border-gray-300 p-1 md:p-2 text-left font-bold">Ch. Wt.</th>
                     <th className="border border-gray-300 p-1 md:p-2 text-left font-bold">Length</th>
                     <th className="border border-gray-300 p-1 md:p-2 text-left font-bold">Width</th>
                     <th className="border border-gray-300 p-1 md:p-2 text-left font-bold">Height</th>
@@ -535,11 +539,8 @@ const DocketViewContent = () => {
                     docket.shipments.map((shipment, index) => (
                       <tr key={shipment.Id || index}>
                         <td className="border border-gray-300 p-1 md:p-2 text-center">{shipment.NoOfBox}</td>
-                        <td className="border border-gray-300 p-1 md:p-2">Shipment Item</td>
                         <td className="border border-gray-300 p-1 md:p-2 text-right">{shipment.ActualWeight} kg</td>
-                        <td className="border border-gray-300 p-1 md:p-2 text-right">
-                          {(parseFloat(shipment.ActualWeight) * shipment.NoOfBox).toFixed(2)} kg
-                        </td>
+                        
                         <td className="border border-gray-300 p-1 md:p-2 text-right">{shipment.Length} cm</td>
                         <td className="border border-gray-300 p-1 md:p-2 text-right">{shipment.Width} cm</td>
                         <td className="border border-gray-300 p-1 md:p-2 text-right">{shipment.Height} cm</td>
