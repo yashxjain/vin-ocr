@@ -621,51 +621,7 @@ export default function AddDocketPage() {
         </div>
 
         <div className="max-w-5xl mx-auto p-4">
-          {/* OCR Upload Section */}
-          <div className="mb-6 bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <label className="font-bold text-[#002d62] flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                Scan Consignee Address with Camera
-              </label>
-              {ocrLoading && (
-                <div className="text-sm text-[#f7931d] animate-pulse">Processing...</div>
-              )}
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleOCRUpload}
-              className="hidden"
-              id="ocr-upload"
-              disabled={ocrLoading}
-            />
-            <label
-              htmlFor="ocr-upload"
-              className={`block w-full py-3 px-4 text-center rounded-lg border-2 border-dashed ${
-                ocrLoading ? 'border-gray-300 bg-gray-100' : 'border-[#f7931d] bg-[#f7931d]/5 hover:bg-[#f7931d]/10 cursor-pointer transition'
-              }`}
-            >
-              {ocrLoading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-[#f7931d] border-t-transparent rounded-full animate-spin"></div>
-                  Scanning Image...
-                </div>
-              ) : (
-                <div className="flex items-center justify-center gap-2">
-                  <Camera className="w-5 h-5" />
-                  Tap to Capture Consignee Address
-                </div>
-              )}
-            </label>
-            {ocrText && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-                <div className="font-semibold text-green-700 mb-1">Address Detected ✓</div>
-                <div className="text-gray-700">Name, mobile and pincode auto-filled</div>
-              </div>
-            )}
-          </div>
+          
 
           {/* Messages */}
           {error && (
@@ -798,7 +754,51 @@ export default function AddDocketPage() {
                 </div>
               )}
             </div>
-
+{/* OCR Upload Section */}
+          <div className="mb-6 bg-white rounded-xl p-4 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between mb-3">
+              <label className="font-bold text-[#002d62] flex items-center gap-2">
+                <Camera className="w-5 h-5" />
+                Scan Consignee Address with Camera
+              </label>
+              {ocrLoading && (
+                <div className="text-sm text-[#f7931d] animate-pulse">Processing...</div>
+              )}
+            </div>
+            <input
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleOCRUpload}
+              className="hidden"
+              id="ocr-upload"
+              disabled={ocrLoading}
+            />
+            <label
+              htmlFor="ocr-upload"
+              className={`block w-full py-3 px-4 text-center rounded-lg border-2 border-dashed ${
+                ocrLoading ? 'border-gray-300 bg-gray-100' : 'border-[#f7931d] bg-[#f7931d]/5 hover:bg-[#f7931d]/10 cursor-pointer transition'
+              }`}
+            >
+              {ocrLoading ? (
+                <div className="flex items-center justify-center gap-2">
+                  <div className="w-4 h-4 border-2 border-[#f7931d] border-t-transparent rounded-full animate-spin"></div>
+                  Scanning Image...
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2">
+                  <Camera className="w-5 h-5" />
+                  Tap to Capture Consignee Address
+                </div>
+              )}
+            </label>
+            {ocrText && (
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                <div className="font-semibold text-green-700 mb-1">Address Detected ✓</div>
+                <div className="text-gray-700">Name, mobile and pincode auto-filled</div>
+              </div>
+            )}
+          </div>
             {/* Consignee Section - Fill by scanning */}
             <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
               <SectionHeader icon={User} title="Consignee Details (Scan or Fill)" />
