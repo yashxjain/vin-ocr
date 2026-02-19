@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ArrowLeft, Printer, RefreshCw, Download, ChevronLeft, ChevronRight, Menu, X, Home } from 'lucide-react';
+import { ArrowLeft, Printer, RefreshCw, Download, ChevronLeft, ChevronRight, Menu, X, Home, Edit2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 
 interface Shipment {
@@ -47,6 +47,7 @@ interface ApiDocketData {
   CreatedAt: string;
   shipments?: Shipment[];
   ShipmentCount: number;
+  status?: number;
 }
 
 interface ApiResponse {
@@ -64,6 +65,8 @@ const DocketViewContent = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
 
   useEffect(() => {
     if (docketNo) {
@@ -75,7 +78,7 @@ const DocketViewContent = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `https://namami-infotech.com/vinworld/src/docket/get_docket.php?locationId=${user.LocationId}&search=${docketNumber}`
+        `https://namami-infotech.com/vinworld/src/docket/get_docket.php?locationId=${user?.LocationId}&search=${docketNumber}`
       );
       
       if (!response.ok) {
@@ -97,6 +100,44 @@ const DocketViewContent = () => {
     }
   };
 
+  const handleVerify = async () => {
+  try {
+    setVerifying(true);
+    setError(null);
+    setVerifySuccess(null);
+
+    const response = await fetch('https://namami-infotech.com/vinworld/src/docket/verify_docket.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        docketNo: docket?.DocketNo
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      setVerifySuccess('Docket verified successfully!');
+      // Refresh docket data to get updated status
+      if (docket?.DocketNo) {
+        fetchDocketData(docket.DocketNo);
+      }
+      // Clear success message after 3 seconds
+      setTimeout(() => {
+        setVerifySuccess(null);
+      }, 3000);
+    } else {
+      throw new Error(result.message || 'Failed to verify docket');
+    }
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Failed to verify docket');
+    console.error('Error verifying docket:', err);
+  } finally {
+    setVerifying(false);
+  }
+};
   const handlePrint = () => {
     window.print();
   };
@@ -188,7 +229,7 @@ const DocketViewContent = () => {
               </button>
               <button
                 onClick={() => {
-                  router.back();
+                  router.push('/dashboard');
                   setShowMobileMenu(false);
                 }}
                 className="w-full flex items-center gap-3 p-3 text-gray-700 hover:bg-gray-100 rounded-lg"
@@ -206,6 +247,18 @@ const DocketViewContent = () => {
                 <Printer size={20} />
                 Print
               </button>
+              {docket.status === 0 && (
+                <button
+                  onClick={() => {
+                    router.push(`/docket/edit?docketNo=${docket.DocketNo}`);
+                    setShowMobileMenu(false);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 text-gray-700 hover:bg-gray-100 rounded-lg"
+                >
+                  <Edit2 size={20} />
+                  Edit Docket
+                </button>
+              )}
               <button
                 onClick={() => {
                   fetchDocketData(docket.DocketNo);
@@ -226,7 +279,7 @@ const DocketViewContent = () => {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => router.back()}
+              onClick={() => router.push('/dashboard')}
               className="flex items-center gap-2 text-[#002d62] hover:text-[#f7931d] transition"
             >
               <ArrowLeft size={20} />
@@ -248,6 +301,18 @@ const DocketViewContent = () => {
                 <Download size={16} />
                 Download PDF
               </button>
+              {docket.status === 0 && (
+                <button
+                  onClick={() => {
+                    router.push(`/docket/edit?docketNo=${docket.DocketNo}`);
+                    setShowMobileMenu(false);
+                  }}
+                  className="bg-[#f7931d] text-white px-4 py-2 rounded text-sm hover:bg-[#e67e00] transition flex items-center gap-2"
+                >
+                  <Edit2 size={16} />
+                  Edit Docket
+                </button>
+              )}
               <button
                 onClick={() => fetchDocketData(docket.DocketNo)}
                 className="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300 transition flex items-center gap-2"
@@ -654,6 +719,68 @@ const DocketViewContent = () => {
         </div>
       </div>
 
+      {/* Verify Button - Show only if status is 0 */}
+{docket.status === 0 && (
+  <div className="mt-8 flex justify-center">
+    <button
+      onClick={handleVerify}
+      disabled={verifying}
+      className="bg-green-600 text-white px-8 py-4 rounded-lg font-bold text-lg hover:bg-green-700 transition flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+    >
+      {verifying ? (
+        <>
+          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+          Verifying...
+        </>
+      ) : (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Verify Docket
+        </>
+      )}
+    </button>
+  </div>
+)}
+
+{/* Success Message */}
+{verifySuccess && (
+  <div className="mt-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded text-center">
+    {verifySuccess}
+  </div>
+)}
+
+{/* Error Message */}
+{error && (
+  <div className="mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-center">
+    {error}
+  </div>
+      )}
+      {/* Mobile Verify Button - Show only if status is 0 */}
+{docket.status === 0 && (
+  <div className="lg:hidden mt-4 px-4">
+    <button
+      onClick={handleVerify}
+      disabled={verifying}
+      className="w-full bg-green-600 text-white py-4 rounded-lg font-bold text-lg hover:bg-green-700 transition flex items-center justify-center gap-3 disabled:opacity-50 shadow-lg"
+    >
+      {verifying ? (
+        <>
+          <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+          Verifying...
+        </>
+      ) : (
+        <>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Verify Docket
+        </>
+      )}
+    </button>
+  </div>
+)}
       {/* Spacer for mobile bottom action bar */}
       <div className="h-16 lg:hidden"></div>
 
