@@ -54,6 +54,7 @@ export const DashboardHeader: React.FC = () => {
                 src="https://vinworldexpress.com/assets/img/resource/logo-4.png" 
                 alt="VIN WORLD Logo"
                 className="h-8"
+                onClick={() => router.push("/dashboard")}
               />
               <h1 className="text-lg font-bold text-[#f7931d]">VIN WORLD</h1>
             </div>
@@ -155,7 +156,7 @@ export const DashboardHeader: React.FC = () => {
       <header className="hidden lg:block bg-[#002d62] text-white px-6 py-4 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Logo Section */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4" onClick={() => router.push("/dashboard")} style={{cursor:"pointer"}}>
             <img 
               src="https://vinworldexpress.com/assets/img/resource/logo-4.png" 
               alt="VIN WORLD Logo"
@@ -167,13 +168,13 @@ export const DashboardHeader: React.FC = () => {
 
           {/* User Section */}
           <div className="flex items-center gap-4">
-            <button
+            {/* <button
               onClick={() => router.push('/docket/add')}
               className="bg-[#f7931d] text-white px-4 py-2 rounded-lg font-semibold hover:bg-[#e67e00] transition flex items-center gap-2"
             >
               <Package className="w-4 h-4" />
               Add Docket
-            </button>
+            </button> */}
 
             <div className="relative">
               <button

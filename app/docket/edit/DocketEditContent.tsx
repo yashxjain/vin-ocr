@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Printer, RefreshCw, Download, ChevronLeft, ChevronRight, Menu, X, Home, Save, Edit2, Plus, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { DashboardHeader } from '@/components/dashboard-header';
 
 interface Shipment {
   Id?: number;
@@ -436,7 +437,8 @@ const DocketEditContent = () => {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-gray-100">
+          <DashboardHeader />
       {/* Mobile Header */}
       <div className="lg:hidden sticky top-0 z-50 bg-[#002d62] text-white">
         <div className="flex items-center justify-between p-4">

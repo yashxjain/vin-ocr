@@ -5,6 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Printer, RefreshCw, Download, ChevronLeft, ChevronRight, Menu, X, Home, Edit2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
+import { DashboardHeader } from '@/components/dashboard-header';
 
 interface Shipment {
   Id: number;
@@ -196,6 +197,7 @@ const [verifySuccess, setVerifySuccess] = useState<string | null>(null);
   return (
     <div className="min-h-screen bg-gray-100 print:bg-white">
       {/* Mobile Header */}
+      <DashboardHeader />
       <div className="lg:hidden sticky top-0 z-50 bg-[#002d62] text-white print:hidden">
         <div className="flex items-center justify-between p-4">
           <button
