@@ -87,8 +87,7 @@ const router = useRouter();
             <th className="px-4 py-3 text-left text-sm font-bold uppercase">Origin</th>
             <th className="px-4 py-3 text-left text-sm font-bold uppercase">Destination</th>
             <th className="px-4 py-3 text-left text-sm font-bold uppercase">Shipment Type</th>
-            <th className="px-4 py-3 text-left text-sm font-bold uppercase">Shipments</th>
-            <th className="px-4 py-3 text-left text-sm font-bold uppercase">Status</th>
+            
             <th className="px-4 py-3 text-left text-sm font-bold uppercase">Actions</th>
           </tr>
         </thead>
@@ -107,12 +106,7 @@ const router = useRouter();
               <td className="px-4 py-3 text-sm text-gray-700">{docket.Origin}</td>
               <td className="px-4 py-3 text-sm text-gray-700">{docket.Destination}</td>
               <td className="px-4 py-3 text-sm text-gray-700">{docket.ShipmentType}</td>
-              <td className="px-4 py-3 text-sm text-gray-700 text-center">{docket.NoOfShipment}</td>
-              <td className="px-4 py-3">
-                <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase ${getStatusColor(docket.Status)}`}>
-                  {docket.Status}
-                </span>
-              </td>
+              
               <td className="px-4 py-3">
                <button
       onClick={() => handleViewDocket(docket)}

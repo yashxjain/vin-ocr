@@ -283,7 +283,14 @@ const DocketViewContent = () => {
         {/* Docket Form - Original Design */}
         <div className="bg-white p-4 md:p-6 lg:p-8 rounded-lg shadow-lg border print:shadow-none print:border-0 print:p-0">
           {/* Company Header */}
+          <div style={{display:"flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: "1rem"}}>
+           <img 
+            src="https://vinworldexpress.com/assets/img/resource/logo-4.png" 
+            alt="VIN WORLD Logo" 
+            className="h-20 mb-3"
+          />
           <div className="text-center mb-6 md:mb-8 print:mb-8">
+
             <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-[#002d62] leading-tight">
               VIN WORLD EXPRESS PVT. LTD.
             </h1>
@@ -297,7 +304,7 @@ const DocketViewContent = () => {
               Tel.: 011-4471-2929, Mob.: 8800-82-8700, 9717-19-8600
             </p>
           </div>
-
+</div>
           {/* Docket Number & GSTIN */}
           <div className="border-t-2 border-b-2 border-[#002d62] py-3 md:py-4 mb-4 md:mb-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -310,14 +317,7 @@ const DocketViewContent = () => {
                     {docket.DocketNo}
                   </div>
                 </div>
-                <div>
-                  <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1">
-                    SHIP DATE
-                  </label>
-                  <div className="border-b border-gray-300 pb-1">
-                    {new Date(docket.ShipDate).toLocaleDateString('en-IN')}
-                  </div>
-                </div>
+                
               </div>
               
               <div className="space-y-3">
@@ -337,19 +337,19 @@ const DocketViewContent = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-6 md:mb-8">
             <div>
               <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2 md:mb-3">Origin:</h3>
-              <div className="border border-gray-300 p-3 md:p-4 rounded h-32">
+              <div className="border border-gray-300 p-3 md:p-4 rounded h-16">
                 <p className="font-semibold text-sm md:text-base">{docket.Origin}</p>
               </div>
             </div>
             
             <div>
               <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2 md:mb-3">Destination:</h3>
-              <div className="border border-gray-300 p-3 md:p-4 rounded h-32">
+              <div className="border border-gray-300 p-3 md:p-4 rounded h-16">
                 <p className="font-semibold text-sm md:text-base">{docket.Destination}</p>
               </div>
             </div>
           </div>
-
+ <div style={{display:"flex", flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: "1rem"}}>
           {/* Consignor Details */}
           <div className="mb-6 md:mb-8">
             <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2 md:mb-3">Consignor Details:</h3>
@@ -433,6 +433,8 @@ const DocketViewContent = () => {
               </div>
             </div>
           </div>
+          </div>
+           <div style={{display:"flex", flexDirection: "row", alignItems: "center", gap: "2rem"}}>
 
           {/* Mode of Transportation */}
           <div className="mb-6 md:mb-8">
@@ -474,10 +476,8 @@ const DocketViewContent = () => {
   );
 })}
             </div>
-          </div>
-
-          {/* Pickup Details */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
+            </div>
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-6 md:mb-8">
             <div>
               <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1">
                 Pickup Date:
@@ -500,10 +500,13 @@ const DocketViewContent = () => {
               </div>
             </div>
           </div>
+</div>
+          {/* Pickup Details */}
+         
 
           {/* Transportation Charges Table */}
           <div className="mb-6 md:mb-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-4">
               <div>
                 <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1">
                   E-WAY BILL NO.:
@@ -514,6 +517,14 @@ const DocketViewContent = () => {
               </div>
               
               <div>
+                <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1">
+                  Invoice Number:
+                </label>
+                <div className="border-b border-gray-300 pb-1 font-mono text-sm md:text-base">
+                  {getDisplayValue(docket.InvoiceNumber)}
+                </div>
+              </div>
+               <div>
                 <label className="block text-xs md:text-sm font-bold text-gray-700 mb-1">
                   Invoice Value:
                 </label>
@@ -586,7 +597,7 @@ const DocketViewContent = () => {
                   <label key={mode} className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={false}
+                      checked={mode === 'CREDIT'}
                       readOnly
                       className="mr-1 md:mr-2 h-3 w-3 md:h-4 md:w-4 accent-[#002d62]"
                     />
@@ -619,38 +630,7 @@ const DocketViewContent = () => {
           </div>
 
           {/* Bank Details */}
-          <div className="mb-6 md:mb-8">
-            <h3 className="text-base md:text-lg font-bold text-gray-800 mb-2 md:mb-3">BANK DETAILS:</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 border border-gray-300 p-3 md:p-4 rounded">
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">
-                  Bank Name:
-                </label>
-                <div className="border-b border-gray-300 pb-1 text-sm md:text-base">
-                  ________________
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">
-                  Account No.:
-                </label>
-                <div className="border-b border-gray-300 pb-1 font-mono text-sm md:text-base">
-                  ________________
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-xs md:text-sm font-semibold text-gray-700 mb-1">
-                  IFSC Code:
-                </label>
-                <div className="border-b border-gray-300 pb-1 font-mono text-sm md:text-base">
-                  ________________
-                </div>
-              </div>
-            </div>
-          </div>
-
+          
           {/* Declaration */}
           <div className="border-t-2 border-[#002d62] pt-4 md:pt-6 mt-6 md:mt-8">
             <div className="text-xs md:text-sm text-gray-700 space-y-1 md:space-y-2">

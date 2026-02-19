@@ -21,7 +21,9 @@ import {
   Check,
   RefreshCw,
   Eye,
-  Box
+  Box,
+  Building2,
+  ChevronDown
 } from 'lucide-react';
 
 // Box type configurations
@@ -42,8 +44,19 @@ interface Shipment {
   height: number;
   actualWeight: number;
   noOfBox: number;
-  // For display only
   description?: string;
+}
+
+interface Consignor {
+  id: number;
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  pincode: string;
+  district: string | null;
+  state: string | null;
+  status: number;
 }
 
 interface ConsignorData {
@@ -58,7 +71,17 @@ interface ConsignorData {
 export default function AddDocketPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [consignorData, setConsignorData] = useState<ConsignorData | null>(null);
+  const [consignors, setConsignors] = useState<Consignor[]>([]);
+  const [selectedConsignor, setSelectedConsignor] = useState<string>('manual');
+  const [manualConsignor, setManualConsignor] = useState<ConsignorData>({
+    ConsignorName: '',
+    ConsignorMobile: '',
+    ConsignorAddress: '',
+    ConsignorDistrict: '',
+    ConsignorState: '',
+    ConsignorPincode: '',
+  });
+  const [loadingConsignors, setLoadingConsignors] = useState(true);
   
   const [formData, setFormData] = useState({
     consigneeName: '',
@@ -69,11 +92,11 @@ export default function AddDocketPage() {
     consigneePincode: '',
     origin: '',
     destination: '',
-    modeOfTransport: 'Road', // Default to Road
+    modeOfTransport: 'Road',
     invoiceRequired: 'No',
     invoiceNumber: '',
     invoiceValue: '',
-    shipmentType: 'Non-DOX', // Default to Non-DOX
+    shipmentType: 'Non-DOX',
     pickupDate: '',
     pickupEmployee: '',
     ewayBillNo: '',
@@ -99,23 +122,67 @@ export default function AddDocketPage() {
     noOfBox: '1',
   });
 
+  // Fetch consignors on mount
   useEffect(() => {
     setMounted(true);
-    // Get consignor data from session storage
-    const userData = sessionStorage.getItem('vinworld_user');
-    if (userData) {
-      try {
-        const parsed = JSON.parse(userData);
-        setConsignorData(parsed);
-      } catch (e) {
-        console.error('Failed to parse user data', e);
-      }
-    }
+    fetchConsignors();
     
     // Set today's date for pickup date default
     const today = new Date().toISOString().slice(0, 16);
     setFormData(prev => ({ ...prev, pickupDate: today }));
   }, []);
+
+  const fetchConsignors = async () => {
+    try {
+      setLoadingConsignors(true);
+      const response = await fetch('https://namami-infotech.com/vinworld/src/consignor/get_consignor.php');
+      const data = await response.json();
+      
+      if (data.success && data.data) {
+        // Filter only active consignors (status === 1)
+        const activeConsignors = data.data.filter((c: Consignor) => c.status === 1);
+        setConsignors(activeConsignors);
+      }
+    } catch (error) {
+      console.error('Failed to fetch consignors:', error);
+    } finally {
+      setLoadingConsignors(false);
+    }
+  };
+
+  const handleConsignorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = e.target.value;
+    setSelectedConsignor(value);
+    
+    if (value !== 'manual') {
+      const consignor = consignors.find(c => c.id.toString() === value);
+      if (consignor) {
+        setManualConsignor({
+          ConsignorName: consignor.name || '',
+          ConsignorMobile: consignor.phone || '',
+          ConsignorAddress: consignor.address || '',
+          ConsignorDistrict: consignor.district || '',
+          ConsignorState: consignor.state || '',
+          ConsignorPincode: consignor.pincode || '',
+        });
+      }
+    } else {
+      // Reset manual form when switching to manual entry
+      setManualConsignor({
+        ConsignorName: '',
+        ConsignorMobile: '',
+        ConsignorAddress: '',
+        ConsignorDistrict: '',
+        ConsignorState: '',
+        ConsignorPincode: '',
+      });
+    }
+  };
+
+  const handleManualConsignorChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setManualConsignor(prev => ({ ...prev, [name]: value }));
+  };
 
   if (!mounted) return null;
 
@@ -240,6 +307,17 @@ export default function AddDocketPage() {
     setError('');
     setSuccess('');
 
+    // Validate consignor based on selection
+    if (selectedConsignor === 'manual') {
+      const requiredConsignorFields = ['ConsignorName', 'ConsignorMobile', 'ConsignorAddress'];
+      for (const field of requiredConsignorFields) {
+        if (!manualConsignor[field as keyof ConsignorData]) {
+          setError(`Consignor ${field.replace('Consignor', '')} is required for manual entry`);
+          return;
+        }
+      }
+    }
+
     const required = [
       'consigneeName', 'consigneeMobile', 'consigneeAddress',
       'origin', 'destination', 'pickupEmployee'
@@ -263,15 +341,21 @@ export default function AddDocketPage() {
       // Get today's date for shipDate
       const today = new Date().toISOString().split('T')[0];
 
+      // Use selected consignor or manual entry
+      const consignorData = selectedConsignor !== 'manual' 
+        ? consignors.find(c => c.id.toString() === selectedConsignor)
+        : null;
+
       // Prepare API payload
       const payload = {
         consignor: {
-          name: consignorData?.ConsignorName || '',
-          address: consignorData?.ConsignorAddress || '',
-          district: consignorData?.ConsignorDistrict || '',
-          state: consignorData?.ConsignorState || '',
-          pincode: consignorData?.ConsignorPincode || '',
-          mobile: consignorData?.ConsignorMobile || '',
+          id: selectedConsignor !== 'manual' ? parseInt(selectedConsignor) : null,
+          name: selectedConsignor !== 'manual' ? consignorData?.name || '' : manualConsignor.ConsignorName,
+          address: selectedConsignor !== 'manual' ? consignorData?.address || '' : manualConsignor.ConsignorAddress,
+          district: selectedConsignor !== 'manual' ? consignorData?.district || '' : manualConsignor.ConsignorDistrict,
+          state: selectedConsignor !== 'manual' ? consignorData?.state || '' : manualConsignor.ConsignorState,
+          pincode: selectedConsignor !== 'manual' ? consignorData?.pincode || '' : manualConsignor.ConsignorPincode,
+          mobile: selectedConsignor !== 'manual' ? consignorData?.phone || '' : manualConsignor.ConsignorMobile,
         },
         consignee: {
           name: formData.consigneeName,
@@ -357,132 +441,165 @@ export default function AddDocketPage() {
     </div>
   );
 
-  const PreviewCard = () => (
-    <div className={`fixed inset-0 bg-black/50 z-50 flex items-end md:items-center md:justify-center ${showPreview ? 'block' : 'hidden'}`}>
-      <div className="bg-white w-full h-[90vh] md:h-auto md:max-h-[80vh] md:max-w-2xl md:rounded-2xl shadow-2xl flex flex-col">
-        {/* Header */}
-        <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-[#002d62] text-white">
-          <div className="flex items-center gap-3">
-            <Eye className="w-5 h-5" />
-            <h3 className="font-bold">Docket Preview</h3>
-          </div>
-          <button
-            onClick={() => setShowPreview(false)}
-            className="p-2 hover:bg-white/20 rounded-lg"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+  const PreviewCard = () => {
+    const getConsignorDisplay = () => {
+      if (selectedConsignor !== 'manual') {
+        const consignor = consignors.find(c => c.id.toString() === selectedConsignor);
+        return consignor ? {
+          name: consignor.name,
+          mobile: consignor.phone,
+          address: consignor.address,
+          district: consignor.district,
+          state: consignor.state,
+          pincode: consignor.pincode,
+        } : null;
+      }
+      return manualConsignor.ConsignorName ? manualConsignor : null;
+    };
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6">
-          {/* Consignor */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-[#f7931d] flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Consignor Details
-            </h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Name:</span>
-                <div className="font-semibold text-[#002d62]">{consignorData?.ConsignorName || 'Not provided'}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Mobile:</span>
-                <div className="font-semibold text-[#002d62]">{consignorData?.ConsignorMobile || 'Not provided'}</div>
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-600">Address:</span>
-                <div className="font-semibold text-[#002d62]">{consignorData?.ConsignorAddress || 'Not provided'}</div>
-              </div>
+    const consignorDisplay = getConsignorDisplay();
+
+    return (
+      <div className={`fixed inset-0 bg-black/50 z-50 flex items-end md:items-center md:justify-center ${showPreview ? 'block' : 'hidden'}`}>
+        <div className="bg-white w-full h-[90vh] md:h-auto md:max-h-[80vh] md:max-w-2xl md:rounded-2xl shadow-2xl flex flex-col">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 flex items-center justify-between bg-[#002d62] text-white">
+            <div className="flex items-center gap-3">
+              <Eye className="w-5 h-5" />
+              <h3 className="font-bold">Docket Preview</h3>
             </div>
+            <button
+              onClick={() => setShowPreview(false)}
+              className="p-2 hover:bg-white/20 rounded-lg"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Consignee */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-[#f7931d] flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Consignee Details
-            </h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">Name:</span>
-                <div className="font-semibold text-[#002d62]">{formData.consigneeName || 'Not provided'}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Mobile:</span>
-                <div className="font-semibold text-[#002d62]">{formData.consigneeMobile || 'Not provided'}</div>
-              </div>
-              <div className="col-span-2">
-                <span className="text-gray-600">Address:</span>
-                <div className="font-semibold text-[#002d62]">{formData.consigneeAddress || 'Not provided'}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Shipment Details */}
-          <div className="space-y-3">
-            <h4 className="font-bold text-[#f7931d] flex items-center gap-2">
-              <Truck className="w-4 h-4" />
-              Shipment Details
-            </h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-600">From:</span>
-                <div className="font-semibold text-[#002d62]">{formData.origin || 'Not provided'}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">To:</span>
-                <div className="font-semibold text-[#002d62]">{formData.destination || 'Not provided'}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Type:</span>
-                <div className="font-semibold text-[#002d62]">{formData.shipmentType}</div>
-              </div>
-              <div>
-                <span className="text-gray-600">Mode:</span>
-                <div className="font-semibold text-[#002d62]">{formData.modeOfTransport}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Items */}
-          {shipments.length > 0 && (
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {/* Consignor */}
             <div className="space-y-3">
               <h4 className="font-bold text-[#f7931d] flex items-center gap-2">
-                <Package className="w-4 h-4" />
-                Shipments ({shipments.length})
+                <User className="w-4 h-4" />
+                Consignor Details
               </h4>
-              <div className="space-y-2">
-                {shipments.map((shipment, idx) => (
-                  <div key={shipment.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <div className="font-semibold text-[#002d62] mb-1">
-                      {idx + 1}. {BOX_TYPES[shipment.boxType].label}
-                    </div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                      <div>Weight: {shipment.actualWeight}kg</div>
-                      <div>Quantity: {shipment.noOfBox}</div>
-                      <div className="col-span-2">Dimensions: {shipment.length} x {shipment.width} x {shipment.height}</div>
-                    </div>
+              {consignorDisplay ? (
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-600">Name:</span>
+                    <div className="font-semibold text-[#002d62]">{consignorDisplay.name}</div>
                   </div>
-                ))}
+                  <div>
+                    <span className="text-gray-600">Mobile:</span>
+                    <div className="font-semibold text-[#002d62]">{consignorDisplay.mobile}</div>
+                  </div>
+                  <div className="col-span-2">
+                    <span className="text-gray-600">Address:</span>
+                    <div className="font-semibold text-[#002d62]">{consignorDisplay.address}</div>
+                  </div>
+                  {(consignorDisplay.district || consignorDisplay.state || consignorDisplay.pincode) && (
+                    <div className="col-span-2">
+                      <span className="text-gray-600">Location:</span>
+                      <div className="font-semibold text-[#002d62]">
+                        {[consignorDisplay.district, consignorDisplay.state, consignorDisplay.pincode]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-gray-500">No consignor selected</div>
+              )}
+            </div>
+
+            {/* Consignee */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-[#f7931d] flex items-center gap-2">
+                <User className="w-4 h-4" />
+                Consignee Details
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">Name:</span>
+                  <div className="font-semibold text-[#002d62]">{formData.consigneeName || 'Not provided'}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Mobile:</span>
+                  <div className="font-semibold text-[#002d62]">{formData.consigneeMobile || 'Not provided'}</div>
+                </div>
+                <div className="col-span-2">
+                  <span className="text-gray-600">Address:</span>
+                  <div className="font-semibold text-[#002d62]">{formData.consigneeAddress || 'Not provided'}</div>
+                </div>
               </div>
             </div>
-          )}
-        </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={() => setShowPreview(false)}
-            className="w-full bg-[#002d62] text-white py-3 rounded-lg font-bold hover:bg-[#00448c] transition"
-          >
-            Close Preview
-          </button>
+            {/* Shipment Details */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-[#f7931d] flex items-center gap-2">
+                <Truck className="w-4 h-4" />
+                Shipment Details
+              </h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-gray-600">From:</span>
+                  <div className="font-semibold text-[#002d62]">{formData.origin || 'Not provided'}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">To:</span>
+                  <div className="font-semibold text-[#002d62]">{formData.destination || 'Not provided'}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Type:</span>
+                  <div className="font-semibold text-[#002d62]">{formData.shipmentType}</div>
+                </div>
+                <div>
+                  <span className="text-gray-600">Mode:</span>
+                  <div className="font-semibold text-[#002d62]">{formData.modeOfTransport}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Items */}
+            {shipments.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="font-bold text-[#f7931d] flex items-center gap-2">
+                  <Package className="w-4 h-4" />
+                  Shipments ({shipments.length})
+                </h4>
+                <div className="space-y-2">
+                  {shipments.map((shipment, idx) => (
+                    <div key={shipment.id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <div className="font-semibold text-[#002d62] mb-1">
+                        {idx + 1}. {BOX_TYPES[shipment.boxType].label}
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                        <div>Weight: {shipment.actualWeight}kg</div>
+                        <div>Quantity: {shipment.noOfBox}</div>
+                        <div className="col-span-2">Dimensions: {shipment.length} x {shipment.width} x {shipment.height}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-gray-200">
+            <button
+              onClick={() => setShowPreview(false)}
+              className="w-full bg-[#002d62] text-white py-3 rounded-lg font-bold hover:bg-[#00448c] transition"
+            >
+              Close Preview
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <ProtectedRoute>
@@ -564,35 +681,122 @@ export default function AddDocketPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Consignor Section - Auto-filled from session */}
+            {/* Consignor Section - Dropdown with manual option */}
             <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
-              <SectionHeader icon={User} title="Consignor Details (Auto-filled)" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg">
-                <div>
-                  <label className="text-sm font-semibold text-[#002d62]">Name</label>
-                  <div className="text-gray-900 font-medium">{consignorData?.ConsignorName || 'Not available'}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-[#002d62]">Mobile</label>
-                  <div className="text-gray-900 font-medium">{consignorData?.ConsignorMobile || 'Not available'}</div>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="text-sm font-semibold text-[#002d62]">Address</label>
-                  <div className="text-gray-900 font-medium">{consignorData?.ConsignorAddress || 'Not available'}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-[#002d62]">District</label>
-                  <div className="text-gray-900 font-medium">{consignorData?.ConsignorDistrict || 'Not available'}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-[#002d62]">State</label>
-                  <div className="text-gray-900 font-medium">{consignorData?.ConsignorState || 'Not available'}</div>
-                </div>
-                <div>
-                  <label className="text-sm font-semibold text-[#002d62]">Pincode</label>
-                  <div className="text-gray-900 font-medium">{consignorData?.ConsignorPincode || 'Not available'}</div>
-                </div>
+              <SectionHeader icon={Building2} title="Select Consignor" />
+              
+              <div className="mb-6">
+                <label className="text-sm font-semibold text-[#002d62] block mb-2">
+                  Choose Consignor *
+                </label>
+                <select
+                  value={selectedConsignor}
+                  onChange={handleConsignorChange}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900 appearance-none"
+                  disabled={loadingConsignors}
+                >
+                  <option value="manual">➕ Add Manually</option>
+                  {loadingConsignors ? (
+                    <option disabled>Loading consignors...</option>
+                  ) : (
+                    consignors.map((consignor) => (
+                      <option key={consignor.id} value={consignor.id}>
+                        {consignor.name} - {consignor.phone}
+                      </option>
+                    ))
+                  )}
+                </select>
+                {loadingConsignors && (
+                  <div className="mt-2 text-sm text-gray-500 flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-[#f7931d] border-t-transparent rounded-full animate-spin"></div>
+                    Loading consignors...
+                  </div>
+                )}
               </div>
+
+              {/* Manual Consignor Entry Form */}
+              {selectedConsignor === 'manual' && (
+                <div className="space-y-4 border-t pt-6">
+                  <h4 className="font-bold text-[#002d62]">Enter Consignor Details</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
+                        <User className="w-4 h-4" />
+                        Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="ConsignorName"
+                        value={manualConsignor.ConsignorName}
+                        onChange={handleManualConsignorChange}
+                        placeholder="Enter consignor name"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2">
+                        <Phone className="w-4 h-4" />
+                        Mobile *
+                      </label>
+                      <input
+                        type="tel"
+                        name="ConsignorMobile"
+                        value={manualConsignor.ConsignorMobile}
+                        onChange={handleManualConsignorChange}
+                        placeholder="10-digit mobile"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
+                      />
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-semibold text-[#002d62] flex items-center gap-2 mb-2">
+                        <MapPin className="w-4 h-4" />
+                        Address *
+                      </label>
+                      <textarea
+                        name="ConsignorAddress"
+                        value={manualConsignor.ConsignorAddress}
+                        onChange={handleManualConsignorChange}
+                        placeholder="Enter complete address"
+                        rows={3}
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-[#002d62]">District</label>
+                      <input
+                        type="text"
+                        name="ConsignorDistrict"
+                        value={manualConsignor.ConsignorDistrict}
+                        onChange={handleManualConsignorChange}
+                        placeholder="Enter district"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-[#002d62]">State</label>
+                      <input
+                        type="text"
+                        name="ConsignorState"
+                        value={manualConsignor.ConsignorState}
+                        onChange={handleManualConsignorChange}
+                        placeholder="Enter state"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-[#002d62]">Pincode</label>
+                      <input
+                        type="text"
+                        name="ConsignorPincode"
+                        value={manualConsignor.ConsignorPincode}
+                        onChange={handleManualConsignorChange}
+                        placeholder="6-digit pincode"
+                        className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Consignee Section - Fill by scanning */}
@@ -967,44 +1171,46 @@ export default function AddDocketPage() {
             </div>
 
             {/* Action Buttons */}
-            <div className="sticky bottom-0 bg-gradient-to-t from-white to-transparent pt-4 pb-6">
-              <div className="flex flex-col md:flex-row gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowPreview(true)}
-                  className="flex-1 bg-white border-2 border-[#002d62] text-[#002d62] py-3 rounded-lg font-bold hover:bg-gray-50 transition flex items-center justify-center gap-2"
-                >
-                  <Eye className="w-5 h-5" />
-                  Preview
-                </button>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  disabled={loading}
-                  className="flex-1 bg-gray-100 border border-gray-300 text-gray-700 py-3 rounded-lg font-bold hover:bg-gray-200 transition disabled:opacity-70 flex items-center justify-center gap-2"
-                >
-                  <RefreshCw className="w-5 h-5" />
-                  Reset
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-[#f7931d] to-[#e67e22] text-white py-3 rounded-lg font-bold hover:shadow-lg transition disabled:opacity-70 flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-5 h-5" />
-                      Submit Docket
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
+<div className="sticky bottom-0 bg-gradient-to-t from-white to-transparent pt-4 pb-6">
+  <div className="flex flex-col md:flex-row gap-2 md:gap-3">
+    <button
+      type="button"
+      onClick={() => setShowPreview(true)}
+      className="w-full md:flex-1 bg-white border-2 border-[#002d62] text-[#002d62] py-2.5 md:py-3 rounded-lg font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm md:text-base"
+    >
+      <Eye className="w-4 h-4 md:w-5 md:h-5" />
+      Preview
+    </button>
+    <div className="flex gap-2 w-full md:flex-1">
+      <button
+        type="button"
+        onClick={handleReset}
+        disabled={loading}
+        className="flex-1 bg-gray-100 border border-gray-300 text-gray-700 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-70 flex items-center justify-center gap-2 text-sm md:text-base"
+      >
+        <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
+        <span className="hidden xs:inline">Reset</span>
+      </button>
+      <button
+        type="submit"
+        disabled={loading}
+        className="flex-1 bg-gradient-to-r from-[#f7931d] to-[#e67e22] text-white py-2.5 md:py-3 rounded-lg font-semibold hover:shadow-lg transition disabled:opacity-70 flex items-center justify-center gap-2 text-sm md:text-base"
+      >
+        {loading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            <span className="hidden xs:inline">Processing...</span>
+          </>
+        ) : (
+          <>
+            <Check className="w-4 h-4 md:w-5 md:h-5" />
+            <span className="hidden xs:inline">Submit</span>
+          </>
+        )}
+      </button>
+    </div>
+  </div>
+</div>
           </form>
 
           {/* Preview Modal */}

@@ -323,20 +323,7 @@ export default function DashboardPage() {
 
             {/* Desktop Filters */}
             <div className="hidden md:grid grid-cols-1 lg:grid-cols-4 gap-4 mb-6">
-              <div>
-                <label className="block font-semibold text-[#002d62] mb-2 text-sm">Status</label>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:outline-none focus:border-[#f7931d] focus:ring-2 focus:ring-orange-100 text-gray-900"
-                >
-                  <option value="all">All Status</option>
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
-                </select>
-              </div>
+              
 
               <div>
                 <label className="block font-semibold text-[#002d62] mb-2 text-sm">Date Range</label>
@@ -385,14 +372,7 @@ export default function DashboardPage() {
             {(statusFilter !== 'all' || dateFilter !== 'all' || searchQuery) && (
               <div className="flex flex-wrap gap-2 mb-4">
                 <div className="text-sm text-gray-600">Active filters:</div>
-                {statusFilter !== 'all' && (
-                  <div className="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm">
-                    Status: {statusFilter}
-                    <button onClick={() => setStatusFilter('all')} className="ml-1">
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                )}
+                
                 {dateFilter !== 'all' && (
                   <div className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm">
                     Date: {dateFilter}
