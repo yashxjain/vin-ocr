@@ -4,6 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Printer, RefreshCw, Download, ChevronLeft, ChevronRight, Menu, X, Home } from 'lucide-react';
+import { useAuth } from '@/lib/auth-context';
 
 interface Shipment {
   Id: number;
@@ -56,6 +57,7 @@ interface ApiResponse {
 
 const DocketViewContent = () => {
   const router = useRouter();
+  const {user} = useAuth()
   const searchParams = useSearchParams();
   const docketNo = searchParams.get('docketNo');
   const [docket, setDocket] = useState<ApiDocketData | null>(null);
@@ -73,7 +75,7 @@ const DocketViewContent = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `https://namami-infotech.com/vinworld/src/docket/get_docket.php?locationId=1&search=${docketNumber}`
+        `https://namami-infotech.com/vinworld/src/docket/get_docket.php?locationId=${user.LocationId}&search=${docketNumber}`
       );
       
       if (!response.ok) {
