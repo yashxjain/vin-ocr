@@ -4,7 +4,7 @@ import React from "react"
 import { ProtectedRoute } from '@/components/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Tesseract from 'tesseract.js';
 import { 
   Phone, 
@@ -23,7 +23,8 @@ import {
   Eye,
   Box,
   Building2,
-  ChevronDown
+  ChevronDown,
+  Image as ImageIcon
 } from 'lucide-react';
 
 // Box type configurations
@@ -71,6 +72,7 @@ interface ConsignorData {
 export default function AddDocketPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [consignors, setConsignors] = useState<Consignor[]>([]);
   const [selectedConsignor, setSelectedConsignor] = useState<string>('manual');
   const [manualConsignor, setManualConsignor] = useState<ConsignorData>({
@@ -111,6 +113,8 @@ export default function AddDocketPage() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Shipment form state
   const [shipmentForm, setShipmentForm] = useState({
@@ -264,6 +268,16 @@ export default function AddDocketPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Store the captured image
+    setCapturedImage(file);
+    
+    // Create image preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+
     setOcrLoading(true);
     setOcrText("");
 
@@ -282,6 +296,15 @@ export default function AddDocketPage() {
       setOcrText("❌ Failed to read text");
     } finally {
       setOcrLoading(false);
+    }
+  };
+
+  const removeImage = () => {
+    setCapturedImage(null);
+    setImagePreview(null);
+    setOcrText('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -346,7 +369,10 @@ export default function AddDocketPage() {
         ? consignors.find(c => c.id.toString() === selectedConsignor)
         : null;
 
-      // Prepare API payload
+      // Create FormData object for multipart/form-data
+      const formDataObj = new FormData();
+
+      // Add all the data as JSON string
       const payload = {
         consignor: {
           id: selectedConsignor !== 'manual' ? parseInt(selectedConsignor) : null,
@@ -387,10 +413,17 @@ export default function AddDocketPage() {
         }))
       };
 
+      // Add the payload as JSON string
+      formDataObj.append('data', JSON.stringify(payload));
+
+      // Add the image if captured
+      if (capturedImage) {
+        formDataObj.append('image', capturedImage);
+      }
+
       const response = await fetch('https://namami-infotech.com/vinworld/src/docket/add_docket.php', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: formDataObj, // Don't set Content-Type header, browser will set it with boundary
       });
 
       const data = await response.json();
@@ -430,6 +463,12 @@ export default function AddDocketPage() {
     });
     setShipments([]);
     setShowInvoiceFields(false);
+    setCapturedImage(null);
+    setImagePreview(null);
+    setOcrText('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const SectionHeader = ({ icon: Icon, title }: { icon: any, title: string }) => (
@@ -534,6 +573,20 @@ export default function AddDocketPage() {
                   <div className="font-semibold text-[#002d62]">{formData.consigneeAddress || 'Not provided'}</div>
                 </div>
               </div>
+              
+              {/* Image Preview */}
+              {imagePreview && (
+                <div className="mt-3">
+                  <span className="text-gray-600 text-sm">Captured Image:</span>
+                  <div className="mt-2 relative">
+                    <img 
+                      src={imagePreview} 
+                      alt="Captured consignee address" 
+                      className="max-h-40 rounded-lg border border-gray-200"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Shipment Details */}
@@ -621,8 +674,6 @@ export default function AddDocketPage() {
         </div>
 
         <div className="max-w-5xl mx-auto p-4">
-          
-
           {/* Messages */}
           {error && (
             <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
@@ -754,51 +805,75 @@ export default function AddDocketPage() {
                 </div>
               )}
             </div>
-{/* OCR Upload Section */}
-          <div className="mb-6 bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-            <div className="flex items-center justify-between mb-3">
-              <label className="font-bold text-[#002d62] flex items-center gap-2">
-                <Camera className="w-5 h-5" />
-                Scan Consignee Address with Camera
-              </label>
-              {ocrLoading && (
-                <div className="text-sm text-[#f7931d] animate-pulse">Processing...</div>
+
+            {/* OCR Upload Section */}
+            <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between mb-3">
+                <label className="font-bold text-[#002d62] flex items-center gap-2">
+                  <Camera className="w-5 h-5" />
+                  Scan Consignee Address with Camera
+                </label>
+                {ocrLoading && (
+                  <div className="text-sm text-[#f7931d] animate-pulse">Processing...</div>
+                )}
+              </div>
+              
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleOCRUpload}
+                className="hidden"
+                id="ocr-upload"
+                disabled={ocrLoading}
+                ref={fileInputRef}
+              />
+              
+              {!imagePreview ? (
+                <label
+                  htmlFor="ocr-upload"
+                  className={`block w-full py-3 px-4 text-center rounded-lg border-2 border-dashed ${
+                    ocrLoading ? 'border-gray-300 bg-gray-100' : 'border-[#f7931d] bg-[#f7931d]/5 hover:bg-[#f7931d]/10 cursor-pointer transition'
+                  }`}
+                >
+                  {ocrLoading ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-[#f7931d] border-t-transparent rounded-full animate-spin"></div>
+                      Scanning Image...
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-center gap-2">
+                      <Camera className="w-5 h-5" />
+                      Tap to Capture Consignee Address
+                    </div>
+                  )}
+                </label>
+              ) : (
+                <div className="space-y-3">
+                  <div className="relative">
+                    <img 
+                      src={imagePreview} 
+                      alt="Captured" 
+                      className="w-full max-h-48 object-contain rounded-lg border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={removeImage}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition shadow-lg"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {ocrText && (
+                    <div className="p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
+                      <div className="font-semibold text-green-700 mb-1">Address Detected ✓</div>
+                      <div className="text-gray-700">Name, mobile and pincode auto-filled from image</div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-            <input
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={handleOCRUpload}
-              className="hidden"
-              id="ocr-upload"
-              disabled={ocrLoading}
-            />
-            <label
-              htmlFor="ocr-upload"
-              className={`block w-full py-3 px-4 text-center rounded-lg border-2 border-dashed ${
-                ocrLoading ? 'border-gray-300 bg-gray-100' : 'border-[#f7931d] bg-[#f7931d]/5 hover:bg-[#f7931d]/10 cursor-pointer transition'
-              }`}
-            >
-              {ocrLoading ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-[#f7931d] border-t-transparent rounded-full animate-spin"></div>
-                  Scanning Image...
-                </div>
-              ) : (
-                <div className="flex items-center justify-center gap-2">
-                  <Camera className="w-5 h-5" />
-                  Tap to Capture Consignee Address
-                </div>
-              )}
-            </label>
-            {ocrText && (
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg text-sm">
-                <div className="font-semibold text-green-700 mb-1">Address Detected ✓</div>
-                <div className="text-gray-700">Name, mobile and pincode auto-filled</div>
-              </div>
-            )}
-          </div>
+
             {/* Consignee Section - Fill by scanning */}
             <div className="bg-white rounded-xl p-5 shadow-sm border border-gray-200">
               <SectionHeader icon={User} title="Consignee Details (Scan or Fill)" />
@@ -1171,46 +1246,46 @@ export default function AddDocketPage() {
             </div>
 
             {/* Action Buttons */}
-<div className="sticky bottom-0 bg-gradient-to-t from-white to-transparent pt-4 pb-6">
-  <div className="flex flex-col md:flex-row gap-2 md:gap-3">
-    <button
-      type="button"
-      onClick={() => setShowPreview(true)}
-      className="w-full md:flex-1 bg-white border-2 border-[#002d62] text-[#002d62] py-2.5 md:py-3 rounded-lg font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm md:text-base"
-    >
-      <Eye className="w-4 h-4 md:w-5 md:h-5" />
-      Preview
-    </button>
-    <div className="flex gap-2 w-full md:flex-1">
-      <button
-        type="button"
-        onClick={handleReset}
-        disabled={loading}
-        className="flex-1 bg-gray-100 border border-gray-300 text-gray-700 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-70 flex items-center justify-center gap-2 text-sm md:text-base"
-      >
-        <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
-        <span className="hidden xs:inline">Reset</span>
-      </button>
-      <button
-        type="submit"
-        disabled={loading}
-        className="flex-1 bg-gradient-to-r from-[#f7931d] to-[#e67e22] text-white py-2.5 md:py-3 rounded-lg font-semibold hover:shadow-lg transition disabled:opacity-70 flex items-center justify-center gap-2 text-sm md:text-base"
-      >
-        {loading ? (
-          <>
-            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-            <span className="hidden xs:inline">Processing...</span>
-          </>
-        ) : (
-          <>
-            <Check className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="hidden xs:inline">Submit</span>
-          </>
-        )}
-      </button>
-    </div>
-  </div>
-</div>
+            <div className="sticky bottom-0 bg-gradient-to-t from-white to-transparent pt-4 pb-6">
+              <div className="flex flex-col md:flex-row gap-2 md:gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPreview(true)}
+                  className="w-full md:flex-1 bg-white border-2 border-[#002d62] text-[#002d62] py-2.5 md:py-3 rounded-lg font-semibold hover:bg-gray-50 transition flex items-center justify-center gap-2 text-sm md:text-base"
+                >
+                  <Eye className="w-4 h-4 md:w-5 md:h-5" />
+                  Preview
+                </button>
+                <div className="flex gap-2 w-full md:flex-1">
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    disabled={loading}
+                    className="flex-1 bg-gray-100 border border-gray-300 text-gray-700 py-2.5 md:py-3 rounded-lg font-semibold hover:bg-gray-200 transition disabled:opacity-70 flex items-center justify-center gap-2 text-sm md:text-base"
+                  >
+                    <RefreshCw className="w-4 h-4 md:w-5 md:h-5" />
+                    <span className="hidden xs:inline">Reset</span>
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="flex-1 bg-gradient-to-r from-[#f7931d] to-[#e67e22] text-white py-2.5 md:py-3 rounded-lg font-semibold hover:shadow-lg transition disabled:opacity-70 flex items-center justify-center gap-2 text-sm md:text-base"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span className="hidden xs:inline">Processing...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 md:w-5 md:h-5" />
+                        <span className="hidden xs:inline">Submit</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
           </form>
 
           {/* Preview Modal */}
